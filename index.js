@@ -93,7 +93,7 @@ client.on('message_create', async (msg) => {
     chat.sendStateTyping();
 
     // Obtem historico do chat
-    const history = buildChatHistory(chat);
+    const history = await buildChatHistory(chat);
 
     // Versão Gemini
     if (msg.body.startsWith('!ocogpt ')) {
