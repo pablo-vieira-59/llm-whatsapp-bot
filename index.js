@@ -25,8 +25,16 @@ const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 const contactCache = new Map();
 
 async function getAuthorName(m) {
-    if (!m.author) return "OcoGPT";
+    // Mensagem enviada pelo próprio bot
+    if (m.fromMe) return "OcoGPT";
 
+    // Chat privado (não grupo)
+    if (!m.author) {
+        const contato = await m.getContact();
+        return contato.pushname || contato.name || "Usuário";
+    }
+
+    // Grupo
     if (contactCache.has(m.author)) {
         return contactCache.get(m.author);
     }
@@ -48,8 +56,9 @@ async function buildChatHistory(chat, limit = 200, maxChars = 10000) {
             .filter(m => m.body)
             .map(async (m) => {
                 try {
-                    return getAuthorName(m);
-                } catch {
+                    const nome = await getAuthorName(m);
+                    return `${nome}: ${m.body}`;
+                } catch (err) {
                     return `Desconhecido: ${m.body}`;
                 }
             })
