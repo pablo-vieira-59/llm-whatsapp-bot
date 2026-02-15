@@ -5,7 +5,7 @@ const qrcode = require('qrcode-terminal');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { OpenAI } = require("openai");
 
-// CONFIGURAÇÃO OPENAI / LM STUDIO
+// CONFIGURAÇÃO OPENAI
 if (!process.env.OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY não definida no .env");
 }
@@ -13,6 +13,12 @@ if (!process.env.OPENROUTER_API_KEY) {
 const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+// CONFIGURAÇÃO LM STUDIO
+const lmstudio = new OpenAI({
+    baseURL: "http://192.168.0.7:1234/v1",
+    apiKey: 'lm-studio',
 });
 
 // CONFIGURAÇÃO DO GEMINI
@@ -46,7 +52,7 @@ async function buildChatHistory(chat, limit = 200) {
             })
     );
 
-    const result = formatted.join('\n');
+    const result = formatted.join('\n').slice(-10000);
     //console.log(result);
     return result;
 }
@@ -73,7 +79,7 @@ client.on('ready', () => {
 client.on('message_create', async (msg) => {
     console.log(msg._data?.notifyName + ":" + msg.body);
 
-    if (msg.body.startsWith('!ocogpt ') || msg.body.startsWith('!ocogptv2 ')) {
+    if (msg.body.startsWith('!ocogpt ') || msg.body.startsWith('!ocogptv2 ') || msg.body.startsWith('!ocogptv3 ')) {
         const chat = await msg.getChat();
         chat.sendStateTyping();
         
@@ -126,6 +132,38 @@ client.on('message_create', async (msg) => {
 
                 const resposta = completion.choices[0].message.content;
 
+                await msg.reply(resposta);
+
+            } catch (error) {
+                console.error("Erro na API:", error);
+                await msg.reply('OcoGPT está ocupado demais para você agora. (Erro na API)');
+            }
+        }
+
+        // Versão L Studio
+        if (msg.body.startsWith('!ocogptv3 ')) {
+            const prompt = msg.body.replace('!ocogptv3 ', '');
+
+            try {
+                // Chamada para a API (LM Studio)
+                const completion = await lmstudio.chat.completions.create({
+                    model: "", // O LM Studio usa o que estiver carregado
+                    messages: [
+                        {
+                            role: "system",
+                            content: "Seu nome é OcoGPT. Você é um assistente para um grupo de WhatsApp.Suas mensagens devem conter no maximo 120 palavras."
+                        },
+                        {
+                            role: "user",
+                            content: prompt + "\n \n Aqui está um historico de mensagens caso seja necessário, caso não seja, ignore \n \n" + history
+                        }
+                    ],
+                    temperature: 0.9, // Mais alto = mais criatividade/caos
+                });
+
+                var resposta = completion.choices[0].message.content;
+                resposta = resposta.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                
                 await msg.reply(resposta);
 
             } catch (error) {
