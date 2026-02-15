@@ -22,31 +22,8 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-const contactCache = new Map();
 
-async function getAuthorName(m) {
-    // Mensagem enviada pelo próprio bot
-    if (m.fromMe) return "OcoGPT";
-
-    // Chat privado (não grupo)
-    if (!m.author) {
-        const contato = await m.getContact();
-        return contato.pushname || contato.name || "Usuário";
-    }
-
-    // Grupo
-    if (contactCache.has(m.author)) {
-        return contactCache.get(m.author);
-    }
-
-    const contato = await m.getContact();
-    const nome = contato.pushname || contato.name || "Desconhecido";
-
-    contactCache.set(m.author, nome);
-    return nome;
-}
-
-async function buildChatHistory(chat, limit = 200, maxChars = 10000) {
+async function buildChatHistory(chat, limit = 200) {
     const messages = await chat.fetchMessages({ limit });
 
     console.log(`Recuperadas ${messages.length} mensagens do grupo: ${chat.name}`);
@@ -56,7 +33,12 @@ async function buildChatHistory(chat, limit = 200, maxChars = 10000) {
             .filter(m => m.body)
             .map(async (m) => {
                 try {
-                    const nome = await getAuthorName(m);
+                    var nome = 'Desconhecido'
+
+                    if(m._data?.notifyName){
+                        nome = m._data?.notifyName;
+                    }
+
                     return `${nome}: ${m.body}`;
                 } catch (err) {
                     return `Desconhecido: ${m.body}`;
@@ -64,7 +46,9 @@ async function buildChatHistory(chat, limit = 200, maxChars = 10000) {
             })
     );
 
-    return formatted.join('\n').slice(-maxChars);
+    const result = formatted.join('\n');
+    //console.log(result);
+    return result;
 }
 
 // Inicia o cliente do WhatsApp
@@ -87,65 +71,67 @@ client.on('ready', () => {
 
 // Ouvindo mensagens
 client.on('message_create', async (msg) => {
-    console.log(msg.body)
-    const chat = await msg.getChat();
+    console.log(msg._data?.notifyName + ":" + msg.body);
 
-    chat.sendStateTyping();
+    if (msg.body.startsWith('!ocogpt ') || msg.body.startsWith('!ocogptv2 ')) {
+        const chat = await msg.getChat();
+        chat.sendStateTyping();
+        
+        // Obtem historico do chat
+        const history = await buildChatHistory(chat);
 
-    // Obtem historico do chat
-    const history = await buildChatHistory(chat);
+        // Versão Gemini
+        if (msg.body.startsWith('!ocogpt ')) {
+            const prompt = msg.body.replace('!ocogpt ', '');
 
-    // Versão Gemini
-    if (msg.body.startsWith('!ocogpt ')) {
-        const prompt = msg.body.replace('!ocogpt ', '');
+            try {
+                var finalPrompt = prompt + "\n \n Aqui está um historico de mensagens caso seja necessário, caso não seja, ignore \n \n";
+                finalPrompt += history;
+                finalPrompt += "\n Sua resposta deve conter apenas 100 palavras por padrao, responda com mais palavras caso seja explicitamente solicitado.";
 
-        try {
-            var finalPrompt = prompt + "\n \n Aqui está um historico de mensagens caso seja necessário, caso não seja, ignore \n \n";
-            finalPrompt += history;
-            finalPrompt += "\n Sua resposta deve conter apenas 100 palavras por padrao, responda com mais palavras caso seja explicitamente solicitado.";
+                // Pergunta ao Gemini
+                const result = await model.generateContent(finalPrompt);
+                const response = await result.response;
+                const text = response.text();
 
-            // Pergunta ao Gemini
-            const result = await model.generateContent(finalPrompt);
-            const response = await result.response;
-            const text = response.text();
+                // Responde no WhatsApp (marcando a mensagem original)
+                await msg.reply(text);
 
-            // Responde no WhatsApp (marcando a mensagem original)
-            await msg.reply(text);
-
-        } catch (error) {
-            console.error(error);
-            await msg.reply('Desculpe, deu erro ao falar com o Gemini.');
+            } catch (error) {
+                console.error(error);
+                await msg.reply('Desculpe, deu erro ao falar com o Gemini.');
+            }
         }
-    }
 
-    // Versão ChatGPT
-    if (msg.body.startsWith('!ocogptv2 ')) {
-        const prompt = msg.body.replace('!ocogptv2 ', '');
+        // Versão ChatGPT
+        if (msg.body.startsWith('!ocogptv2 ')) {
+            const prompt = msg.body.replace('!ocogptv2 ', '');
 
-        try {
-            // Chamada para a API (OpenAI/LM Studio)
-            const completion = await openai.chat.completions.create({
-                model: "openai/gpt-oss-120b", // O LM Studio usa o que estiver carregado
-                messages: [
-                    {
-                        role: "system",
-                        content: "Seu nome é OcoGPT. Você é um assistente para um grupo de WhatsApp.Suas mensagens devem conter no maximo 100 palavras."
-                    },
-                    {
-                        role: "user",
-                        content: prompt + "\n \n Aqui está um historico de mensagens caso seja necessário, caso não seja, ignore \n \n" + history
-                    }
-                ],
-                temperature: 0.9, // Mais alto = mais criatividade/caos
-            });
+            try {
+                // Chamada para a API (OpenAI/LM Studio)
+                const completion = await openai.chat.completions.create({
+                    model: "openai/gpt-oss-120b", // O LM Studio usa o que estiver carregado
+                    messages: [
+                        {
+                            role: "system",
+                            content: "Seu nome é OcoGPT. Você é um assistente para um grupo de WhatsApp.Suas mensagens devem conter no maximo 100 palavras."
+                        },
+                        {
+                            role: "user",
+                            content: prompt + "\n \n Aqui está um historico de mensagens caso seja necessário, caso não seja, ignore \n \n" + history
+                        }
+                    ],
+                    temperature: 0.9, // Mais alto = mais criatividade/caos
+                });
 
-            const resposta = completion.choices[0].message.content;
+                const resposta = completion.choices[0].message.content;
 
-            await msg.reply(resposta);
+                await msg.reply(resposta);
 
-        } catch (error) {
-            console.error("Erro na API:", error);
-            await msg.reply('OcoGPT está ocupado demais para você agora. (Erro na API)');
+            } catch (error) {
+                console.error("Erro na API:", error);
+                await msg.reply('OcoGPT está ocupado demais para você agora. (Erro na API)');
+            }
         }
     }
 });
