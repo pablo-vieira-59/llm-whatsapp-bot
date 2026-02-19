@@ -7,7 +7,7 @@ async function handleComfy(msg) {
     const chat = await msg.getChat();
     chat.sendStateTyping();
 
-    const prompt = msg.body.replace('!ocoimagem ', '');
+    const prompt = msg.body.replace('!ocobanana ', '');
     msg.reply('Estou gerando a imagem, aguarde um momento ...');
 
     try {
@@ -17,7 +17,7 @@ async function handleComfy(msg) {
             messages: [
                 {
                     role: "system",
-                    content: "You a translator.Your objective is translate the prompt to english.Answer with the translation only"
+                    content: "You are a translator.Your objective is translate the prompt to english.Answer with the translation only"
                 },
                 {
                     role: "user",

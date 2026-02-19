@@ -6,7 +6,6 @@ const { handleLMStudio } = require('./handlers/lmstudio.handler');
 const { handleGemini } = require('./handlers/gemini.handler');
 const { handleNanoBanana } = require('./handlers/nanobanana.handler');
 const { handleComfy } = require('./handlers/comfy.handler');
-// importar outros handlers
 
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -36,10 +35,10 @@ client.on('message_create', async (msg) => {
   if (msg.body.startsWith('!ocogptv3 ')) {
     return handleLMStudio(msg);
   }
+  // if (msg.body.startsWith('!ocobanana ')) {
+  //   //return handleNanoBanana(msg);
+  // }
   if (msg.body.startsWith('!ocobanana ')) {
-    return handleNanoBanana(msg);
-  }
-  if (msg.body.startsWith('!ocoimagem ')) {
     return handleComfy(msg);
   }
 

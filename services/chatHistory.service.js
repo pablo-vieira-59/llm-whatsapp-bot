@@ -11,7 +11,7 @@ async function buildChatHistory(chat, limit = 200) {
       return `${nome}: ${m.body}`;
     });
 
-    console.log(formatted.join('\n'));
+  //console.log(formatted.join('\n'));
   return formatted.join('\n').slice(-10000);
 }
 

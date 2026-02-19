@@ -1,7 +1,6 @@
 const { askNanoBanana } = require("../services/nanobanana.service");
 const { MessageMedia } = require('whatsapp-web.js');
 
-
 async function handleNanoBanana(msg) {
     const chat = await msg.getChat();
     chat.sendStateTyping();
@@ -11,19 +10,16 @@ async function handleNanoBanana(msg) {
     try {
         const result = askNanoBanana(prompt);
 
-        // Procuramos a parte que contém a imagem nos candidatos
         let imagePart = result.candidates[0].content.parts.find(part => part.inlineData);
 
         if (imagePart) {
             const base64Data = imagePart.inlineData.data;
             const mimeType = imagePart.inlineData.mimeType;
 
-            // Criamos a mídia para o WhatsApp a partir do Base64 recebido
             const media = new MessageMedia(mimeType, base64Data, "imagem_gerada.png");
 
-            // OcoGPT enviando a imagem com o estilo dele
             await chat.sendMessage(media, {
-                caption: "Aqui está sua imagem. Não me peça mais nada, sem tempo irmão.",
+                caption: "",
                 quotedMessageId: msg.id._serialized
             });
         } else {
@@ -31,8 +27,8 @@ async function handleNanoBanana(msg) {
         }
     }
     catch (error) {
-        console.error("Erro na geração de imagem:", error);
-        await msg.reply("Deu erro,mals");
+        console.error(error);
+        await msg.reply("Desculpa, deu erro ao gerar imagem com o Nano Banana.");
     }
 }
 

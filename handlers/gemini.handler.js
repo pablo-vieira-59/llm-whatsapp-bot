@@ -6,10 +6,10 @@ async function handleGemini(msg) {
     const chat = await msg.getChat();
     chat.sendStateTyping();
 
-    const history = await buildChatHistory(chat);
-    const prompt = msg.body.replace('!ocogpt ', '');
-
     try {
+        const history = await buildChatHistory(chat);
+        const prompt = msg.body.replace('!ocogpt ', '');
+
         var finalPrompt = prompt + "\n \n Aqui está um historico de mensagens caso seja necessário, caso não seja, ignore \n \n";
         finalPrompt += history;
         finalPrompt += "\n Sua resposta deve conter apenas 100 palavras por padrao, responda com mais palavras caso seja explicitamente solicitado.";
