@@ -39,7 +39,7 @@ async function handleComfy(msg) {
         });
     } catch (error) {
         console.error("Erro na API:", error);
-        await msg.reply('Deu erro, mals');
+        await msg.reply('Desculpa, deu erro ao gerar imagem no ComfyUI.');
     }
 }
 
