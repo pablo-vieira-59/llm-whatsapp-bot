@@ -1,7 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 
-async function waitForCompletion(promptId, timeout = 180000, interval = 2000) {
+async function waitForCompletion(promptId, timeout = 300000, interval = 2000) {
     const start = Date.now();
 
     while (true) {
