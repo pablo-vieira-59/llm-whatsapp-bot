@@ -1,4 +1,4 @@
-const { generateComfyImage } = require("../services/comfy.service");
+const { generateComfyImage, editComfyImage } = require("../services/comfy.service");
 const { openai } = require("../config/ai.config");
 const { MessageMedia } = require('whatsapp-web.js');
 
@@ -11,9 +11,8 @@ async function handleComfy(msg) {
     msg.reply('Estou gerando a imagem, aguarde um momento ...');
 
     try {
-        // Chamada para a API (OpenAI/LM Studio)
         const completion = await openai.chat.completions.create({
-            model: "openai/gpt-oss-120b", // O LM Studio usa o que estiver carregado
+            model: "openai/gpt-oss-120b",
             messages: [
                 {
                     role: "system",
@@ -24,19 +23,36 @@ async function handleComfy(msg) {
                     content: "Translate the following: \n" + prompt
                 }
             ],
-            temperature: 0.9, // Mais alto = mais criatividade/caos
+            temperature: 0.9,
         });
 
         const resultPrompt = completion.choices[0].message.content;
         console.log(resultPrompt);
 
-        const result = await generateComfyImage(resultPrompt);
-        const media = new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
+        if (!msg.hasMedia) {
+            const result = await generateComfyImage(resultPrompt);
+            const media = new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
 
-        await chat.sendMessage(media, {
-            caption: "",
-            quotedMessageId: msg.id._serialized
-        });
+            await chat.sendMessage(media, {
+                caption: "",
+                quotedMessageId: msg.id._serialized
+            });
+        }
+        else {
+            const media = await msg.downloadMedia();
+
+            if (media && media.mimetype.startsWith('image/')) {
+                const result = await editComfyImage(resultPrompt, msg);
+                const resultMedia =  new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
+                await chat.sendMessage(resultMedia, {
+                caption: "",
+                quotedMessageId: msg.id._serialized
+            });
+            } else {
+                msg.reply("Formato de imagem inválida.")
+            }
+        }
+
     } catch (error) {
         console.error("Erro na API:", error);
         await msg.reply('Desculpa, deu erro ao gerar imagem no ComfyUI.');
