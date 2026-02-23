@@ -1,4 +1,4 @@
-const { generateComfyImage, editComfyImage } = require("../services/comfy.service");
+const { generateComfyImage, editComfyImage, editComfyMultipleImage } = require("../services/comfy.service");
 const { openai } = require("../config/ai.config");
 const { MessageMedia } = require('whatsapp-web.js');
 
@@ -42,12 +42,29 @@ async function handleComfy(msg) {
             const media = await msg.downloadMedia();
 
             if (media && media.mimetype.startsWith('image/')) {
-                const result = await editComfyImage(resultPrompt, msg);
-                const resultMedia =  new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
-                await chat.sendMessage(resultMedia, {
-                caption: "",
-                quotedMessageId: msg.id._serialized
-            });
+                if (!msg.hasQuotedMsg) {
+                    const result = await editComfyImage(resultPrompt, msg);
+                    const resultMedia = new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
+                    await chat.sendMessage(resultMedia, {
+                        caption: "",
+                        quotedMessageId: msg.id._serialized
+                    });
+                }
+                else {
+                    const quotedMsg = await msg.getQuotedMessage();
+
+                    // 🔹 Verifica se a mensagem respondida contém mídia válida
+                    if (!quotedMsg.hasMedia || quotedMsg.type !== 'image') {
+                        return msg.reply("A mensagem respondida não contém uma imagem válida.");
+                    }
+
+                    const result = await editComfyMultipleImage(resultPrompt, msg);
+                    const resultMedia = new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
+                    await chat.sendMessage(resultMedia, {
+                        caption: "",
+                        quotedMessageId: msg.id._serialized
+                    });
+                }
             } else {
                 msg.reply("Formato de imagem inválida.")
             }
