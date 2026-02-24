@@ -1,5 +1,6 @@
 const { buildChatHistory } = require("../services/chatHistory.service");
 const { askGemini } = require("../services/gemini.service");
+const { handleGPT } = require("./gpt.handler");
 
 
 async function handleGemini(msg) {
@@ -19,8 +20,10 @@ async function handleGemini(msg) {
         await msg.reply(text);
 
     } catch (error) {
+
         console.error(error);
-        await msg.reply('Desculpe, deu erro ao falar com o Gemini.');
+        handleGPT(msg);
+        //await msg.reply('Desculpe, deu erro ao falar com o Gemini.');
     }
 }
 

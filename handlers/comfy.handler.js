@@ -30,13 +30,29 @@ async function handleComfy(msg) {
         console.log(resultPrompt);
 
         if (!msg.hasMedia) {
-            const result = await generateComfyImage(resultPrompt);
-            const media = new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
+            if (!msg.hasQuotedMsg) {
+                const result = await generateComfyImage(resultPrompt);
+                const media = new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
 
-            await chat.sendMessage(media, {
-                caption: "",
-                quotedMessageId: msg.id._serialized
-            });
+                await chat.sendMessage(media, {
+                    caption: "",
+                    quotedMessageId: msg.id._serialized
+                });
+            }
+            else {
+                const quotedMsg = await msg.getQuotedMessage();
+
+                if (!quotedMsg.hasMedia || quotedMsg.type !== 'image') {
+                    return msg.reply("A mensagem respondida não contém uma imagem válida.");
+                }
+
+                const result = await editComfyImage(resultPrompt, quotedMsg);
+                const resultMedia = new MessageMedia(result.mimeType, result.buffer, "comfy_output.png");
+                await chat.sendMessage(resultMedia, {
+                    caption: "",
+                    quotedMessageId: msg.id._serialized
+                });
+            }
         }
         else {
             const media = await msg.downloadMedia();
@@ -53,7 +69,6 @@ async function handleComfy(msg) {
                 else {
                     const quotedMsg = await msg.getQuotedMessage();
 
-                    // 🔹 Verifica se a mensagem respondida contém mídia válida
                     if (!quotedMsg.hasMedia || quotedMsg.type !== 'image') {
                         return msg.reply("A mensagem respondida não contém uma imagem válida.");
                     }
